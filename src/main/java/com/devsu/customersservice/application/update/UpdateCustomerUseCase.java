@@ -1,6 +1,8 @@
 package com.devsu.customersservice.application.update;
 
 import com.devsu.customersservice.application.ports.PasswordHasher;
+import com.devsu.customersservice.application.ports.CustomerEventPublisher;
+import com.devsu.customersservice.application.events.CustomerEvent;
 import com.devsu.customersservice.domain.exceptions.IdentificationAlreadyInUseException;
 import com.devsu.customersservice.domain.entities.Customer;
 import com.devsu.customersservice.domain.entities.valueobjects.Address;
@@ -20,25 +22,28 @@ import java.util.Optional;
 public class UpdateCustomerUseCase {
     private final CustomerRepository customerRepository;
     private final PasswordHasher passwordHasher;
+    private final CustomerEventPublisher eventPublisher;
 
-    public UpdateCustomerUseCase(CustomerRepository customerRepository, PasswordHasher passwordHasher) {
+    public UpdateCustomerUseCase(CustomerRepository customerRepository, PasswordHasher passwordHasher,
+                                 CustomerEventPublisher eventPublisher) {
         this.customerRepository = customerRepository;
         this.passwordHasher = passwordHasher;
+        this.eventPublisher = eventPublisher;
     }
     @Transactional
     public Optional<Customer> execute(UpdateCustomerCommand command) {
 
+        Optional<Customer> existingCustomer = customerRepository.findById(command.clientId());
         if (command.identification() != null) {
-            var updatedCustomer = customerRepository.findById(command.clientId());
-            if (updatedCustomer.isPresent()
-                    && !updatedCustomer.get().identification().value().equals(command.identification())
+            if (existingCustomer.isPresent()
+                    && !existingCustomer.get().identification().value().equals(command.identification())
                     && customerRepository.existsByIdentificationAndClientIdNot(
                     new Identification(command.identification()), command.clientId())) {
                 throw new IdentificationAlreadyInUseException();
             }
         }
 
-        return customerRepository.findById(command.clientId())
+        return existingCustomer
                 .map(customer -> customer.withUpdates(
                         command.firstName() == null ? null : new FirstName(command.firstName()),
                         command.lastName() == null ? null : new LastName(command.lastName()),
@@ -49,6 +54,13 @@ public class UpdateCustomerUseCase {
                         command.phone() == null ? null : new Phone(command.phone()),
                         command.password() == null ? null : new EncodedPassword(passwordHasher.hash(command.password())),
                         command.status() == null ? null : new CustomerStatus(command.status())))
-                .flatMap(customerRepository::update);
+                .flatMap(customerRepository::update)
+                .map(updatedCustomer -> {
+                    eventPublisher.publish(CustomerEvent.snapshot(CustomerEvent.CUSTOMER_UPDATED, updatedCustomer));
+                    if (existingCustomer.get().isActive() != updatedCustomer.isActive()) {
+                        eventPublisher.publish(CustomerEvent.statusChanged(updatedCustomer));
+                    }
+                    return updatedCustomer;
+                });
     }
 }

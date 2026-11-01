@@ -5,6 +5,7 @@ import com.devsu.customersservice.application.list.ListCustomersUseCase;
 import com.devsu.customersservice.application.delete.DeleteCustomerUseCase;
 import com.devsu.customersservice.application.update.UpdateCustomerUseCase;
 import com.devsu.customersservice.application.ports.PasswordHasher;
+import com.devsu.customersservice.application.ports.CustomerEventPublisher;
 import com.devsu.customersservice.domain.repositories.CustomerRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,8 +14,9 @@ import org.springframework.context.annotation.Configuration;
 public class ApplicationUseCaseConfiguration {
     @Bean
     public CreateCustomerUseCase createCustomerUseCase(CustomerRepository customerRepository,
-                                                       PasswordHasher passwordHasher) {
-        return new CreateCustomerUseCase(customerRepository, passwordHasher);
+                                                       PasswordHasher passwordHasher,
+                                                       CustomerEventPublisher eventPublisher) {
+        return new CreateCustomerUseCase(customerRepository, passwordHasher, eventPublisher);
     }
 
     @Bean
@@ -24,12 +26,14 @@ public class ApplicationUseCaseConfiguration {
 
     @Bean
     public UpdateCustomerUseCase updateCustomerUseCase(CustomerRepository customerRepository,
-                                                       PasswordHasher passwordHasher) {
-        return new UpdateCustomerUseCase(customerRepository, passwordHasher);
+                                                       PasswordHasher passwordHasher,
+                                                       CustomerEventPublisher eventPublisher) {
+        return new UpdateCustomerUseCase(customerRepository, passwordHasher, eventPublisher);
     }
 
     @Bean
-    public DeleteCustomerUseCase deleteCustomerUseCase(CustomerRepository customerRepository) {
-        return new DeleteCustomerUseCase(customerRepository);
+    public DeleteCustomerUseCase deleteCustomerUseCase(CustomerRepository customerRepository,
+                                                        CustomerEventPublisher eventPublisher) {
+        return new DeleteCustomerUseCase(customerRepository, eventPublisher);
     }
 }

@@ -25,9 +25,22 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/customers
       DB_USERNAME: devsu
       DB_PASSWORD: devsu
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: banking
+      RABBITMQ_PASSWORD: banking
+      RABBITMQ_VHOST: /
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - banking-rabbitmq
+
+networks:
+  banking-rabbitmq:
+    external: true
+    name: banking-service_default
 
 volumes:
   postgres_data:
